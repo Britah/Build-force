@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geofencing Demo - Site System</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        #map {
+            height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .info-box p {
+            margin: 5px 0;
+            color: #666;
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+        
+        .status.inside {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.outside {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .coordinates {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .instructions {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #ffc107;
+            margin-bottom: 15px;
+        }
+        
+        .instructions h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            color: #856404;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ Geofencing Demo - Site System</h1>
+            <p>Test location-based check-in validation</p>
+        </div>
+        
+        <div class="content">
+            <div>
+                <div id="map"></div>
+            </div>
+            
+            <div class="controls">
+                <div class="instructions">
+                    <h4>📋 How to Use:</h4>
+                    <ol>
+                        <li>Click "Get My Location" to find your current position</li>
+                        <li>The map shows a sample project boundary (blue polygon)</li>
+                        <li>Your location appears as a red marker</li>
+                        <li>Try "Simulate Check-In" to test geofencing</li>
+                        <li>Green status = inside boundary (allowed)</li>
+                        <li>Red status = outside boundary (denied)</li>
+                    </ol>
+                </div>
+                
+                <button class="btn btn-primary" onclick="getMyLocation()">
+                    📍 Get My Location
+                </button>
+                
+                <button class="btn btn-success" onclick="simulateCheckIn()">
+                    ✅ Simulate Check-In
+                </button>
+                
+                <button class="btn btn-danger" onclick="simulateOutsideLocation()">
+                    🚫 Simulate Outside Location
+                </button>
+                
+                <div class="info-box">
+                    <h3>Current Location</h3>
+                    <div class="coordinates" id="locationInfo">
+                        <p>Click "Get My Location" to start</p>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <h3>Project Boundary</h3>
+                    <div class="coordinates" id="boundaryInfo">
+                        <p>Sample project area displayed on map</p>
+                    </div>
+                </div>
+                
+                <div id="statusMessage"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([-1.286389, 36.817223], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Sample project boundary (Nairobi area - replace with actual coordinates)
+        const projectBoundary = [
+            [-1.2850, 36.8150],
+            [-1.2850, 36.8200],
+            [-1.2900, 36.8200],
+            [-1.2900, 36.8150],
+            [-1.2850, 36.8150]
+        ];
+        
+        // Draw project boundary on map
+        const polygon = L.polygon(projectBoundary, {
+            color: '#667eea',
+            fillColor: '#667eea',
+            fillOpacity: 0.2,
+            weight: 3
+        }).addTo(map);
+        
+        polygon.bindPopup('<b>Project Boundary</b><br>Sample Construction Site');
+        
+        // Fit map to show boundary
+        map.fitBounds(polygon.getBounds());
+        
+        let userMarker = null;
+        let currentLocation = null;
+        
+        // Point in polygon algorithm
+        function pointInPolygon(point, polygon) {
+            let inside = false;
+            const x = point[0], y = point[1];
+            
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const xi = polygon[i][0], yi = polygon[i][1];
+                const xj = polygon[j][0], yj = polygon[j][1];
+                
+                const intersect = ((yi > y) !== (yj > y))
+                    && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            
+            return inside;
+        }
+        
+        // Get user's current location
+        function getMyLocation() {
+            if (!navigator.geolocation) {
+                showStatus('Geolocation is not supported by your browser', 'outside');
+                return;
+            }
+            
+            showStatus('Getting your location...', 'inside');
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    currentLocation = [position.coords.latitude, position.coords.longitude];
+                    
+                    // Remove previous marker
+                    if (userMarker) {
+                        map.removeLayer(userMarker);
+                    }
+                    
+                    // Add marker for user location
+                    userMarker = L.marker(currentLocation, {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    }).addTo(map);
+                    
+                    userMarker.bindPopup('<b>Your Location</b><br>Lat: ' + currentLocation[0].toFixed(6) + '<br>Lng: ' + currentLocation[1].toFixed(6)).openPopup();
+                    
+                    // Center map on user location
+                    map.setView(currentLocation, 15);
+                    
+                    // Update location info
+                    document.getElementById('locationInfo').innerHTML = `
+                        <p><strong>Latitude:</strong> ${currentLocation[0].toFixed(6)}</p>
+                        <p><strong>Longitude:</strong> ${currentLocation[1].toFixed(6)}</p>
+                        <p><strong>Accuracy:</strong> ${position.coords.accuracy.toFixed(2)} meters</p>
+                    `;
+                    
+                    // Check if inside boundary
+                    checkLocation(currentLocation);
+                },
+                (error) => {
+                    let message = 'Unable to get location: ';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            message += 'Permission denied. Please enable location access.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            message += 'Location information unavailable.';
+                            break;
+                        case error.TIMEOUT:
+                            message += 'Request timed out.';
+                            break;
+                        default:
+                            message += 'Unknown error.';
+                    }
+                    showStatus(message, 'outside');
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+        
+        // Check if location is inside boundary
+        function checkLocation(location) {
+            const isInside = pointInPolygon(location, projectBoundary);
+            
+            if (isInside) {
+                showStatus('✅ You are inside the project boundary - Check-in ALLOWED', 'inside');
+            } else {
+                // Calculate distance to nearest boundary point
+                let minDistance = Infinity;
+                projectBoundary.forEach(point => {
+                    const distance = calculateDistance(location[0], location[1], point[0], point[1]);
+                    minDistance = Math.min(minDistance, distance);
+                });
+                
+                showStatus(`⛔ You are outside the project boundary - Check-in DENIED<br>Distance: ${minDistance.toFixed(0)} meters from boundary`, 'outside');
+            }
+        }
+        
+        // Calculate distance using Haversine formula
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Earth's radius in meters
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+            
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                     Math.cos(φ1) * Math.cos(φ2) *
+                     Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            
+            return R * c;
+        }
+        
+        // Simulate check-in
+        function simulateCheckIn() {
+            if (!currentLocation) {
+                showStatus('Please get your location first', 'outside');
+                return;
+            }
+            
+            checkLocation(currentLocation);
+        }
+        
+        // Simulate location outside boundary
+        function simulateOutsideLocation() {
+            const outsideLocation = [-1.3000, 36.8300]; // Location outside the boundary
+            
+            // Remove previous marker
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+            
+            // Add marker for simulated location
+            userMarker = L.marker(outsideLocation, {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(map);
+            
+            userMarker.bindPopup('<b>Simulated Location</b><br>(Outside boundary)').openPopup();
+            map.setView(outsideLocation, 13);
+            
+            // Update location info
+            document.getElementById('locationInfo').innerHTML = `
+                <p><strong>Latitude:</strong> ${outsideLocation[0].toFixed(6)}</p>
+                <p><strong>Longitude:</strong> ${outsideLocation[1].toFixed(6)}</p>
+                <p><strong>Status:</strong> Simulated (outside)</p>
+            `;
+            
+            currentLocation = outsideLocation;
+            checkLocation(outsideLocation);
+        }
+        
+        // Show status message
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.className = 'status ' + type;
+            statusDiv.innerHTML = message;
+            statusDiv.style.display = 'block';
+        }
+        
+        // Update boundary info
+        document.getElementById('boundaryInfo').innerHTML = `
+            <p><strong>Points:</strong> ${projectBoundary.length}</p>
+            <p><strong>Type:</strong> Polygon</p>
+            <p><strong>Area:</strong> Construction Site</p>
+        `;
+    </script>
+</body>
+</html>

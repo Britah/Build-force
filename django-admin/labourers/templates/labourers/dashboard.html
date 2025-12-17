@@ -1,0 +1,245 @@
+{% extends 'labourers/base.html' %}
+
+{% block title %}Dashboard - Site System{% endblock %}
+
+{% block content %}
+    <div class="space-y-6">
+        <!-- Pending Verifications Alert -->
+        {% if pending_checkins %}
+        <div class="bg-yellow-100 border-l-4 border-yellow-400 p-4 rounded flex flex-col gap-1">
+            <h4 class="text-yellow-800 font-semibold flex items-center gap-2">
+                <i class="fas fa-exclamation-triangle"></i>
+                {{ pending_checkins|length }} Check-in(s) Awaiting Verification
+            </h4>
+            <p class="text-yellow-800 text-sm">Please review and verify pending check-ins below.</p>
+        </div>
+        {% endif %}
+
+        <!-- Quick Actions -->
+        <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div class="bg-white p-6 rounded-lg shadow text-center hover:-translate-y-1 hover:shadow-lg transition">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Take Attendance</h3>
+                <p class="text-gray-500 mb-3">Record daily attendance for labourers</p>
+                <a href="{% url 'attendance' %}" class="inline-block bg-blue-900 text-white px-4 py-2 rounded hover:bg-teal-400 transition">
+                    Start Attendance
+                </a>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow text-center hover:-translate-y-1 hover:shadow-lg transition">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Manage Labourers</h3>
+                <p class="text-gray-500 mb-3">Add, edit, or remove labourer profiles</p>
+                <a href="{% url 'labourer_list' %}" class="inline-block bg-blue-900 text-white px-4 py-2 rounded hover:bg-teal-400 transition">
+                    Manage
+                </a>
+            </div>
+            
+            {% if user.is_superuser %}
+            <div class="bg-white p-6 rounded-lg shadow text-center hover:-translate-y-1 hover:shadow-lg transition">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">View Reports</h3>
+                <p class="text-gray-500 mb-3">Generate attendance and payroll reports</p>
+                <a href="{% url 'reports' %}" class="inline-block bg-blue-900 text-white px-4 py-2 rounded hover:bg-teal-400 transition">
+                    View Reports
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Stats -->
+        <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <div class="bg-white p-5 rounded-lg shadow text-center">
+                <h4 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Labourers</h4>
+                <div class="text-3xl font-bold text-blue-900 my-2">{{ total_labourers }}</div>
+                <p class="text-gray-500 text-sm">Registered in system</p>
+            </div>
+            
+            <div class="bg-white p-5 rounded-lg shadow text-center">
+                <h4 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Today's Attendance</h4>
+                <div class="text-3xl font-bold text-blue-900 my-2">{{ today_checkins }}</div>
+                <p class="text-gray-500 text-sm">Present today</p>
+            </div>
+            
+            <div class="bg-white p-5 rounded-lg shadow text-center">
+                <h4 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Pending Tasks</h4>
+                <div class="text-3xl font-bold text-blue-900 my-2">{{ pending_verification }}</div>
+                <p class="text-gray-500 text-sm">Require attention</p>
+            </div>
+            
+            <div class="bg-white p-5 rounded-lg shadow text-center">
+                <h4 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">System Status</h4>
+                <div class="text-3xl font-bold text-green-500 my-2">🟢</div>
+                <p class="text-gray-500 text-sm">All systems operational</p>
+            </div>
+        </div>
+        
+        <!-- Pending Check-ins for Verification -->
+        <div class="mt-6 bg-white p-6 rounded-lg shadow">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h3 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-user-check"></i>
+                    Pending Check-in Verifications
+                </h3>
+                <span class="px-3 py-1 rounded-full text-sm text-white {% if pending_checkins %}bg-yellow-400{% else %}bg-green-500{% endif %}">
+                    {{ pending_checkins|length|default:0 }}
+                </span>
+            </div>
+
+            {% if pending_checkins %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left border border-gray-200">Time</th>
+                            <th class="px-3 py-2 text-left border border-gray-200">Labourer</th>
+                            <th class="px-3 py-2 text-left border border-gray-200">ID Number</th>
+                            <th class="px-3 py-2 text-left border border-gray-200">Project</th>
+                            <th class="px-3 py-2 text-left border border-gray-200">Match Confidence</th>
+                            <th class="px-3 py-2 text-left border border-gray-200">Photo</th>
+                            <th class="px-3 py-2 text-center border border-gray-200">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for checkin in pending_checkins %}
+                        <tr class="border-b border-gray-200 hover:bg-gray-50">
+                            <td class="px-3 py-2">{{ checkin.timestamp|time:"H:i" }}</td>
+                            <td class="px-3 py-2 font-medium">{{ checkin.labourer.full_name }}</td>
+                            <td class="px-3 py-2">{{ checkin.labourer.national_id }}</td>
+                            <td class="px-3 py-2">{{ checkin.project.name }}</td>
+                            <td class="px-3 py-2">
+                                {% if checkin.facial_match_confidence %}
+                                    <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                        {% if checkin.facial_match_confidence >= 70 %}
+                                            bg-green-100 text-green-800
+                                        {% elif checkin.facial_match_confidence >= 50 %}
+                                            bg-yellow-100 text-yellow-800
+                                        {% else %}
+                                            bg-red-100 text-red-800
+                                        {% endif %}">
+                                        {{ checkin.facial_match_confidence|floatformat:1 }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400 text-xs">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-3 py-2">
+                                {% if checkin.facial_recognition_photo %}
+                                    <img src="{{ checkin.facial_recognition_photo.url }}" 
+                                         class="w-12 h-12 object-cover rounded cursor-pointer"
+                                         onclick="viewPhoto('{{ checkin.facial_recognition_photo.url }}', '{{ checkin.labourer.portrait_photo.url }}')"
+                                         title="Click to view full size">
+                                {% else %}
+                                    <span class="text-gray-400 text-xs">No photo</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-3 py-2 text-center space-x-2">
+                                <button onclick="verifyCheckIn({{ checkin.id }}, 'approve')" 
+                                        class="inline-flex items-center px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700"
+                                        title="Approve Check-in">
+                                    <i class="fas fa-check mr-1"></i> Approve
+                                </button>
+                                <button onclick="verifyCheckIn({{ checkin.id }}, 'reject')" 
+                                        class="inline-flex items-center px-3 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700"
+                                        title="Reject Check-in">
+                                    <i class="fas fa-times mr-1"></i> Reject
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-10 text-gray-500">
+                <i class="fas fa-check-circle text-4xl text-green-500 mb-3 block"></i>
+                <h4 class="text-lg font-semibold text-gray-700 mb-1">No Pending Verifications</h4>
+                <p class="text-sm">
+                    All check-ins have been verified. New check-ins with low facial match confidence (below 50%) will appear here for verification.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function verifyCheckIn(checkinId, action) {
+    if (!confirm(`Are you sure you want to ${action} this check-in?`)) {
+        return;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    if (!csrftoken) {
+        alert('CSRF token not found. Please refresh the page.');
+        return;
+    }
+    
+    fetch(`/verify-checkin/${checkinId}/${action}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred: ' + error.message);
+    });
+}
+
+function viewPhoto(capturedUrl, storedUrl) {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+    modal.innerHTML = `
+        <div style="background: white; padding: 20px; border-radius: 10px; max-width: 90%; max-height: 90%; overflow: auto;">
+            <div style="text-align: right; margin-bottom: 10px;">
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                        style="background: #dc3545; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer;">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4 style="text-align: center; margin-bottom: 10px;">Captured Photo</h4>
+                    <img src="${capturedUrl}" style="width: 100%; max-width: 400px; border-radius: 5px;">
+                </div>
+                <div>
+                    <h4 style="text-align: center; margin-bottom: 10px;">Registered Photo</h4>
+                    <img src="${storedUrl}" style="width: 100%; max-width: 400px; border-radius: 5px;">
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+</script>
+{% endblock %}

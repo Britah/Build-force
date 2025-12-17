@@ -1,0 +1,338 @@
+{% extends 'labourers/base.html' %}
+{% load static %}
+
+{% block title %}Reports & Analytics{% endblock %}
+
+{% block content %}
+<div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px;">
+        <h2 style="margin: 0; color: #1a2980;"><i class="fas fa-chart-bar"></i> Reports & Analytics</h2>
+        <p style="color: #666; margin: 10px 0 0 0;">Overview of attendance, labourers, and project statistics</p>
+    </div>
+
+<div class="container-fluid" style="padding: 0;">
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h3 class="card-title">{{total_labourers}}</h3>
+                    <p class="card-text"><i class="fas fa-users"></i> Total Active Labourers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h3 class="card-title">{{today_checkins}}</h3>
+                    <p class="card-text"><i class="fas fa-sign-in-alt"></i> Check-ins Today</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h3 class="card-title">{{today_checkouts}}</h3>
+                    <p class="card-text"><i class="fas fa-sign-out-alt"></i> Check-outs Today</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h3 class="card-title">{{week_attendance}}</h3>
+                    <p class="card-text"><i class="fas fa-calendar-week"></i> Week's Attendance</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Labourer Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5><i class="fas fa-user-tag"></i> Labourer Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th class="text-end">Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in labourer_stats %}
+                            <tr>
+                                <td>
+                                    {% if stat.status == 'ACTIVE' %}
+                                        <span class="badge bg-success">{{stat.status}}</span>
+                                    {% elif stat.status == 'PENDING' %}
+                                        <span class="badge bg-warning">{{stat.status}}</span>
+                                    {% elif stat.status == 'INACTIVE' %}
+                                        <span class="badge bg-secondary">{{stat.status}}</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">{{stat.status}}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end"><strong>{{stat.count}}</strong></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">No data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5><i class="fas fa-briefcase"></i> Role Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Role</th>
+                                <th class="text-end">Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in role_stats %}
+                            <tr>
+                                <td>{{stat.role__name}}</td>
+                                <td class="text-end"><strong>{{stat.count}}</strong></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">No roles assigned</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Statistics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5><i class="fas fa-building"></i> Project Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Project Name</th>
+                                <th>Site ID</th>
+                                <th class="text-center">Total Labourers</th>
+                                <th class="text-center">Today's Attendance</th>
+                                <th class="text-center">Attendance Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in project_stats %}
+                            <tr>
+                                <td><strong>{{project.name}}</strong></td>
+                                <td>{{project.site_identifier}}</td>
+                                <td class="text-center">{{project.total_labourers}}</td>
+                                <td class="text-center">{{project.today_attendance}}</td>
+                                <td class="text-center">
+                                    {% if project.total_labourers > 0 %}
+                                        {% widthratio project.today_attendance project.total_labourers 100 %}%
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No projects available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Attendance Logs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5><i class="fas fa-clock"></i> Recent Attendance Logs (Last 20)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Labourer</th>
+                                    <th>Employee ID</th>
+                                    <th>Project</th>
+                                    <th>Type</th>
+                                    <th>Verification</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_logs %}
+                                <tr>
+                                    <td>{{log.log_timestamp|date:"H:i:s"}}</td>
+                                    <td>{{log.labourer.full_name}}</td>
+                                    <td><code>{{log.labourer.serial_number}}</code></td>
+                                    <td>{{log.labourer.project.name|default:"N/A"}}</td>
+                                    <td>
+                                        {% if log.log_type == 'Check-In' %}
+                                            <span class="badge bg-success">Check-In</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Check-Out</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{log.verification_method}}</span>
+                                    </td>
+                                    <td>
+                                        {% if log.location_verified %}
+                                            <i class="fas fa-check-circle text-success"></i> Verified
+                                        {% else %}
+                                            <i class="fas fa-times-circle text-danger"></i> Not Verified
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No attendance logs available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5><i class="fas fa-download"></i> Export Reports</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Export attendance and labourer data for further analysis</p>
+                    
+                    <!-- Date Range Selection -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="exportDays" class="form-label">Select Time Period:</label>
+                            <select id="exportDays" class="form-select">
+                                <option value="7">Last 7 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="60">Last 60 days</option>
+                                <option value="90">Last 90 days</option>
+                                <option value="180">Last 6 months</option>
+                                <option value="365">Last year</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="exportReport('csv')">
+                            <i class="fas fa-file-csv"></i> Export to CSV
+                        </button>
+                        <button type="button" class="btn btn-outline-success" onclick="exportReport('excel')">
+                            <i class="fas fa-file-excel"></i> Export to Excel
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="exportReport('pdf')">
+                            <i class="fas fa-file-pdf"></i> Export to PDF
+                        </button>
+                    </div>
+                    
+                    <div id="exportStatus" class="mt-3" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-spinner fa-spin"></i> Preparing your export...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportReport(format) {
+    const days = document.getElementById('exportDays').value;
+    const statusDiv = document.getElementById('exportStatus');
+    
+    // Show loading
+    statusDiv.style.display = 'block';
+    
+    // Build URL based on format
+    let url = '';
+    if (format === 'csv') {
+        url = `{% url 'export_attendance_csv' %}?days=${days}`;
+    } else if (format === 'excel') {
+        url = `{% url 'export_attendance_excel' %}?days=${days}`;
+    } else if (format === 'pdf') {
+        url = `{% url 'export_attendance_pdf' %}?days=${days}`;
+    }
+    
+    // Trigger download
+    window.location.href = url;
+    
+    // Hide loading after a delay
+    setTimeout(() => {
+        statusDiv.style.display = 'none';
+    }, 2000);
+}
+</script>
+
+<style>
+    .card {
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .card-title {
+        font-size: 2.5em;
+        margin-bottom: 0;
+    }
+    
+    .card-text {
+        font-size: 0.9em;
+        margin-top: 10px;
+    }
+    
+    .bg-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+    
+    .bg-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+    }
+    
+    .bg-warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    }
+    
+    .bg-info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+</style>
+{% endblock %}

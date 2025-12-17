@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+     <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+    <title>Camera Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        video {
+            width: 100%;
+            max-width: 640px;
+            background: #000;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        button {
+            background: #2ecc71;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #27ae60;
+        }
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #2ecc71;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            background: #3498db;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        #log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Camera Test Page</h1>
+        <p>This page will test if your browser can access the camera.</p>
+        
+        <button onclick="testCamera()">Start Camera Test</button>
+        <button onclick="stopCamera()">Stop Camera</button>
+        
+        <div id="message"></div>
+        
+        <video id="video" autoplay playsinline></video>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let stream = null;
+        const video = document.getElementById('video');
+        const messageDiv = document.getElementById('message');
+        const logDiv = document.getElementById('log');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#e74c3c' : type === 'success' ? '#2ecc71' : '#3498db';
+            logDiv.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function showMessage(msg, type) {
+            messageDiv.innerHTML = `<div class="${type}">${msg}</div>`;
+        }
+
+        async function testCamera() {
+            logDiv.innerHTML = '';
+            log('=== Camera Test Started ===');
+            log('Browser: ' + navigator.userAgent);
+            log('URL: ' + window.location.href);
+            log('Protocol: ' + window.location.protocol);
+            log('Hostname: ' + window.location.hostname);
+            
+            // Check if running on HTTPS or localhost
+            const isSecure = window.location.protocol === 'https:' || 
+                           window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1' ||
+                           window.location.hostname.startsWith('192.168.');
+            
+            log('Is secure context: ' + isSecure);
+            
+            // Check API availability
+            log('Has navigator.mediaDevices: ' + !!(navigator.mediaDevices));
+            log('Has getUserMedia: ' + !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                const msg = '❌ Your browser does not support camera access. Please use Chrome, Firefox, or Edge.';
+                showMessage(msg, 'error');
+                log(msg, 'error');
+                return;
+            }
+            
+            try {
+                showMessage('📷 Requesting camera access... Please click "Allow" when prompted', 'info');
+                log('Requesting camera access...');
+                
+                // Request camera with simple constraints
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+                
+                log('✅ Camera access granted!', 'success');
+                log('Stream: ' + stream.id);
+                log('Video tracks: ' + stream.getVideoTracks().length);
+                
+                if (stream.getVideoTracks().length > 0) {
+                    const track = stream.getVideoTracks()[0];
+                    log('Track label: ' + track.label);
+                    log('Track settings: ' + JSON.stringify(track.getSettings()));
+                }
+                
+                // Display video
+                video.srcObject = stream;
+                
+                video.onloadedmetadata = () => {
+                    log('Video metadata loaded');
+                    video.play().then(() => {
+                        log('✅ Video playing!', 'success');
+                        showMessage('✅ SUCCESS! Your camera is working! You can now use it in the attendance system.', 'success');
+                    }).catch(err => {
+                        log('Error playing video: ' + err.message, 'error');
+                        showMessage('Error playing video: ' + err.message, 'error');
+                    });
+                };
+                
+            } catch (error) {
+                log('❌ Error: ' + error.name, 'error');
+                log('Message: ' + error.message, 'error');
+                
+                let errorMsg = '';
+                let solution = '';
+                
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errorMsg = '🚫 Camera permission denied';
+                    solution = 'Click the camera icon in your browser address bar and select "Allow", then refresh and try again.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMsg = '📹 No camera found';
+                    solution = 'Please connect a webcam to your computer.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMsg = '⚠️ Camera is busy';
+                    solution = 'Close other applications using the camera (Zoom, Teams, etc.) and try again.';
+                } else {
+                    errorMsg = '❌ ' + error.message;
+                    solution = 'Try using Chrome, Firefox, or Edge browser.';
+                }
+                
+                showMessage(errorMsg + '<br><br>' + solution, 'error');
+                log('Solution: ' + solution);
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                stream = null;
+                log('Camera stopped');
+                showMessage('Camera stopped', 'info');
+            }
+        }
+        
+        // Log initial page load info
+        window.onload = function() {
+            log('Page loaded and ready');
+            log('Click "Start Camera Test" button to begin');
+        };
+    </script>
+</body>
+</html>

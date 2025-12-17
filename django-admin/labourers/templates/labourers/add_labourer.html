@@ -1,0 +1,389 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+    <title>Add New Labourer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+        .nav { background: #007bff; padding: 10px; margin-bottom: 20px; }
+        .nav a { color: white; text-decoration: none; margin-right: 15px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .btn { background: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-submit { background: #28a745; }
+        .form-section { background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .error { color: red; font-size: 0.9em; }
+        .success-message { color: green; background: #d4edda; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
+        .error-message { color: red; background: #f8d7da; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
+        
+        /* Camera styles */
+        .camera-container { 
+            margin: 15px 0; 
+            border: 2px dashed #ddd; 
+            border-radius: 8px; 
+            padding: 20px; 
+            text-align: center;
+        }
+        .camera-preview { 
+            max-width: 100%; 
+            height: auto; 
+            border-radius: 8px; 
+            margin: 10px 0;
+            display: none;
+        }
+        .photo-preview {
+            max-width: 300px;
+            height: auto;
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            margin: 10px auto;
+            display: none;
+        }
+        .btn-camera {
+            background: #17a2b8;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn-camera:hover {
+            background: #138496;
+        }
+        .btn-retake {
+            background: #ffc107;
+            color: #000;
+        }
+        .btn-retake:hover {
+            background: #e0a800;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="/labourers">Dashboard</a>
+        <a href="/labourers/labourers/">Labourers</a>
+        <a href="/labourers/labourers/add/">Add Labourer</a>
+        <a href="/labourers/attendance/">Attendance</a>
+    </div>
+    
+    <h1>Add New Labourer</h1>
+    
+    {% if messages %}
+    <div style="margin: 20px 0; padding: 10px; border-radius: 5px;">
+        {% for message in messages %}
+        <div style="color: {% if message.tags == 'success' %}green{% else %}red{% endif %}; 
+                    padding: 10px; 
+                    margin: 5px 0;
+                    background: {% if message.tags == 'success' %}#d4edda{% else %}#f8d7da{% endif %};
+                    border: 1px solid {% if message.tags == 'success' %}#c3e6cb{% else %}#f5c6cb{% endif %};">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-section">
+            <h3>Personal Information</h3>
+            <div class="form-group">
+                <label for="national_id">National ID *</label>
+                <input type="text" id="national_id" name="national_id" required
+                       placeholder="Enter national ID number">
+                <small>Unique national identification number</small>
+            </div>
+            <div class="form-group">
+                <label for="full_name">Full Name *</label>
+                <input type="text" id="full_name" name="full_name" required
+                       placeholder="Enter full name">
+            </div>
+            <div class="form-group">
+                <label for="date_of_birth">Date of Birth</label>
+                <input type="date" id="date_of_birth" name="date_of_birth">
+            </div>
+            <div class="form-group">
+                <label for="sex">Sex</label>
+                <select id="sex" name="sex">
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="phone_number">Phone Number *</label>
+                <input type="tel" id="phone_number" name="phone_number" required
+                       placeholder="+254700000000" value="+254700000000">
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="email@example.com">
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <h3>Employment Details</h3>
+            <div class="form-group">
+                <label for="designation">Designation *</label>
+                <select id="designation" name="designation" required>
+                    <option value="">Select Designation</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Foreman">Foreman</option>
+                    <option value="Carpenter">Carpenter</option>
+                    <option value="Electrician">Electrician</option>
+                    <option value="Machine Operator">Machine Operator</option>
+                    <option value="Driver">Driver</option>
+                    <option value="Security Guard">Security Guard</option>
+                    <option value="Technician">Technician</option>
+                    <option value="Engineer">Engineer</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="department">Department *</label>
+                <select id="department" name="department" required>
+                    <option value="">Select Department</option>
+                    <option value="Construction">Construction</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Carpentry">Carpentry</option>
+                    <option value="Mechanical">Mechanical</option>
+                    <option value="Security">Security</option>
+                    <option value="Logistics">Logistics</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="project">Project</label>
+                <select id="project" name="project">
+                    <option value="">Select Project</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}">{{ project.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="employment_type">Employment Type *</label>
+                <select id="employment_type" name="employment_type" required>
+                    <option value="">Select Employment Type</option>
+                    <option value="FULL_TIME">Full Time</option>
+                    <option value="CONTRACT" selected>Contract</option>
+                    <option value="CASUAL">Casual</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <h3>Images & Documents </h3>
+            
+            <div class="form-group">
+                <label for="portrait_photo">Portrait Photo</label>
+                <div class="camera-container">
+                    <video id="cameraPreview" class="camera-preview" autoplay playsinline></video>
+                    <img id="photoPreview" class="photo-preview" alt="Captured photo">
+                    <div id="cameraControls">
+                        <button type="button" class="btn-camera" onclick="startCamera()">
+                            📷 Capture with Camera
+                        </button>
+                        <button type="button" class="btn-camera" id="captureBtn" style="display: none;" onclick="capturePhoto()">
+                            📸 Take Photo
+                        </button>
+                        <button type="button" class="btn-camera btn-retake" id="retakeBtn" style="display: none;" onclick="retakePhoto()">
+                            🔄 Retake
+                        </button>
+                    </div>
+                    <small>Clear front-facing photo for facial recognition</small>
+                </div>
+                <input type="hidden" id="portrait_photo" name="portrait_photo">
+            </div>
+            
+            <div class="form-group">
+                <label for="id_front">ID Front Side</label>
+                <input type="file" id="id_front" name="id_front" accept="image/*">
+                <small>Front side of national ID card</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="id_back">ID Back Side</label>
+                <input type="file" id="id_back" name="id_back" accept="image/*">
+                <small>Back side of national ID card</small>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-submit">Save Labourer</button>
+        <a href="/labourers/labourers/" class="btn">Cancel</a>
+    </form>
+   
+    <script>
+        let cameraStream = null;
+        let capturedPhotoData = null;
+
+        async function startCamera() {
+            try {
+                // Check if mediaDevices is supported
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert('Camera is not supported on this browser. Please use a modern browser like Chrome, Firefox, or Edge.');
+                    console.error('getUserMedia is not supported');
+                    return;
+                }
+
+                // Stop existing stream if any
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Request camera access
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user' // Front camera
+                    },
+                    audio: false
+                });
+
+                const video = document.getElementById('cameraPreview');
+                if (!video) {
+                    alert('Camera preview element not found');
+                    return;
+                }
+                
+                video.srcObject = cameraStream;
+                video.style.display = 'block';
+                
+                const photoPreview = document.getElementById('photoPreview');
+                const captureBtn = document.getElementById('captureBtn');
+                const retakeBtn = document.getElementById('retakeBtn');
+                
+                if (photoPreview) photoPreview.style.display = 'none';
+                if (captureBtn) captureBtn.style.display = 'inline-block';
+                if (retakeBtn) retakeBtn.style.display = 'none';
+                
+                // Hide the start camera button
+                if (event && event.target) {
+                    event.target.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Camera error:', error);
+                let errorMessage = 'Error accessing camera: ';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += 'Camera permission denied. Please allow camera access in your browser settings.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage += 'No camera found on this device.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage += 'Camera is already in use by another application.';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                alert(errorMessage);
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraPreview');
+            const canvas = document.createElement('canvas');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64
+            capturedPhotoData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Show preview
+            const preview = document.getElementById('photoPreview');
+            preview.src = capturedPhotoData;
+            preview.style.display = 'block';
+            
+            // Hide video
+            video.style.display = 'none';
+            
+            // Update buttons
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('retakeBtn').style.display = 'inline-block';
+            
+            // Set hidden input value
+            document.getElementById('portrait_photo').value = capturedPhotoData;
+            
+            // Stop camera
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function retakePhoto() {
+            capturedPhotoData = null;
+            document.getElementById('portrait_photo').value = '';
+            document.getElementById('photoPreview').style.display = 'none';
+            startCamera();
+        }
+
+        // Handle file upload as alternative to camera
+        function handleFileUpload(event, targetFieldId) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file');
+                return;
+            }
+
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size should not exceed 5MB');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Data = e.target.result;
+                
+                // Set the hidden field value
+                document.getElementById(targetFieldId).value = base64Data;
+                
+                // Show preview
+                const photoPreview = document.getElementById('photoPreview');
+                if (photoPreview) {
+                    photoPreview.src = base64Data;
+                    photoPreview.style.display = 'block';
+                }
+                
+                // Hide video, show retake button
+                const video = document.getElementById('cameraPreview');
+                if (video) {
+                    video.style.display = 'none';
+                }
+                
+                const captureBtn = document.getElementById('captureBtn');
+                const retakeBtn = document.getElementById('retakeBtn');
+                if (captureBtn) captureBtn.style.display = 'none';
+                if (retakeBtn) retakeBtn.style.display = 'inline-block';
+                
+                // Stop camera if running
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                }
+                
+                capturedPhotoData = base64Data;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Clean up camera on page unload
+        window.addEventListener('beforeunload', function() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

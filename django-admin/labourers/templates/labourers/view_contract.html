@@ -1,0 +1,204 @@
+{% extends 'labourers/base.html' %}
+{% load static %}
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+{% block title %}Contract {{contract.contract_number}}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 900px; margin: 40px auto;">
+    <!-- Contract Header -->
+    <div class="contract-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-file-contract"></i> Contract {{contract.contract_number}}</h2>
+            <span class="badge badge-{{contract.status|lower}} p-2" style="font-size: 1.1em;">
+                {{contract.get_status_display}}
+            </span>
+        </div>
+    </div>
+    
+    <!-- Status Badges -->
+    <div class="mb-4">
+        {% if contract.signature_verified %}
+        <span class="badge bg-success"><i class="fas fa-check-circle"></i> Signed</span>
+        {% else %}
+        <span class="badge bg-warning"><i class="fas fa-exclamation-circle"></i> Awaiting Signature</span>
+        {% endif %}
+        
+        {% if contract.acknowledged_at %}
+        <span class="badge bg-info"><i class="fas fa-check"></i> Acknowledged</span>
+        {% endif %}
+        
+        {% if contract.sent_at %}
+        <span class="badge bg-primary"><i class="fas fa-paper-plane"></i> Sent {{contract.sent_via}}</span>
+        {% endif %}
+    </div>
+    
+    <!-- Contract Details Card -->
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4><i class="fas fa-info-circle"></i> Contract Information</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Employee Details</h6>
+                    <p><strong>Name:</strong> {{contract.labourer.full_name}}</p>
+                    <p><strong>Employee ID:</strong> {{contract.labourer.serial_number}}</p>
+                    <p><strong>National ID:</strong> {{contract.labourer.national_id}}</p>
+                    <p><strong>Phone:</strong> {{contract.labourer.phone_number}}</p>
+                    <p><strong>Email:</strong> {{contract.labourer.email|default:"Not provided"}}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Contract Details</h6>
+                    <p><strong>Contract Number:</strong> {{contract.contract_number}}</p>
+                    <p><strong>Template:</strong> {{contract.template.name}} (v{{contract.template.version}})</p>
+                    <p><strong>Start Date:</strong> {{contract.start_date|date:"F d, Y"}}</p>
+                    <p><strong>End Date:</strong> {% if contract.end_date %}{{contract.end_date|date:"F d, Y"}}{% else %}<span class="text-muted">Ongoing</span>{% endif %}</p>
+                    <p><strong>Created:</strong> {{contract.created_at|date:"F d, Y"}}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contract Content Card -->
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h4><i class="fas fa-file-alt"></i> Contract Document</h4>
+        </div>
+        <div class="card-body" style="background: #f9f9f9;">
+            <div class="contract-content" style="max-height: 500px; overflow-y: auto; padding: 30px; background: white; border: 1px solid #ddd; font-family: Georgia, serif; line-height: 1.8; white-space: pre-wrap;">{{contract.generated_content}}</div>
+        </div>
+    </div>
+    
+    <!-- Signature Card -->
+    {% if contract.signature_verified %}
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-success text-white">
+            <h4><i class="fas fa-signature"></i> Digital Signature</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    {% if contract.signature_image %}
+                    <img src="{{contract.signature_image.url}}" alt="Signature" class="img-fluid" style="max-width: 300px; border: 1px solid #ddd; padding: 10px; background: white;">
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Signed At:</strong> {{contract.signature_timestamp|date:"F d, Y \a\t H:i"}}</p>
+                    <p><strong>IP Address:</strong> {{contract.signature_ip}}</p>
+                    <p><strong>Status:</strong> <span class="badge bg-success">Verified</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Audit Trail -->
+    {% if contract.audit_log %}
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-info text-white">
+            <h4><i class="fas fa-history"></i> Audit Trail</h4>
+        </div>
+        <div class="card-body">
+            <div class="timeline">
+                {% for entry in contract.audit_log %}
+                <div class="timeline-item mb-3 p-3" style="border-left: 3px solid #17a2b8; background: #f0f8ff;">
+                    <strong>{{entry.action}}</strong><br>
+                    <small class="text-muted">
+                        <i class="fas fa-user"></i> {{entry.user}} | 
+                        <i class="fas fa-clock"></i> {{entry.timestamp}}
+                        {% if entry.details %}| {{entry.details}}{% endif %}
+                    </small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Actions -->
+    <div class="card shadow-lg mb-4">
+        <div class="card-header">
+            <h4><i class="fas fa-tasks"></i> Actions</h4>
+        </div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2">
+                {% if not contract.signature_verified %}
+                <a href="{% url 'sign_contract' contract.id %}" class="btn btn-primary">
+                    <i class="fas fa-signature"></i> Sign Contract
+                </a>
+                {% endif %}
+                
+                {% if not contract.sent_at %}
+                <a href="{% url 'send_contract' contract.id %}" class="btn btn-success">
+                    <i class="fas fa-paper-plane"></i> Send Contract
+                </a>
+                {% endif %}
+                
+                {% if contract.signature_verified and not contract.acknowledged_at %}
+                <button class="btn btn-info" onclick="acknowledgeContract()">
+                    <i class="fas fa-check"></i> Acknowledge Contract
+                </button>
+                {% endif %}
+                
+                <button class="btn btn-secondary" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                
+                <a href="{% url 'list_contracts' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-list"></i> Back to Contracts
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .card-header, .btn, .timeline, .no-print {
+            display: none;
+        }
+        .card {
+            border: none;
+            box-shadow: none;
+        }
+    }
+    
+    .badge-draft { background-color: #6c757d; }
+    .badge-generated { background-color: #17a2b8; }
+    .badge-sent { background-color: #007bff; }
+    .badge-viewed { background-color: #ffc107; color: #000; }
+    .badge-signed { background-color: #28a745; }
+    .badge-active { background-color: #198754; }
+    .badge-expired { background-color: #dc3545; }
+    .badge-terminated { background-color: #6c757d; }
+</style>
+
+<script>
+    function acknowledgeContract() {
+        if (!confirm('Are you sure you want to acknowledge this contract?')) {
+            return;
+        }
+        
+        fetch('{% url "acknowledge_contract" contract.id %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error acknowledging contract: ' + error);
+        });
+    }
+</script>
+{% endblock %}

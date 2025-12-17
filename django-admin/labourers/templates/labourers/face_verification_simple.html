@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Photo Verification - {{ labourer.name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        .labourer-info {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+        .labourer-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 10px;
+            object-fit: cover;
+            margin-right: 20px;
+            border: 3px solid #4CAF50;
+        }
+        .camera-section {
+            padding: 30px;
+            text-align: center;
+        }
+        #video {
+            width: 100%;
+            max-width: 640px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .btn {
+            padding: 12px 30px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .result {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .similarity {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .similarity.high { color: #4CAF50; }
+        .similarity.medium { color: #ff9800; }
+        .similarity.low { color: #f44336; }
+        .comparison {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .comparison img {
+            width: 200px;
+            height: 200px;
+            border-radius: 10px;
+            border: 2px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📸 Photo Verification</h1>
+            <p>{{ action|title }} - {{ labourer.name }}</p>
+        </div>
+        
+        <div class="labourer-info">
+            {% if labourer.portrait_image %}
+            <img src="{{ labourer.portrait_image.url }}" alt="Registered Photo" class="labourer-photo">
+            {% else %}
+            <div class="labourer-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 48px;">👤</span>
+            </div>
+            {% endif %}
+            <div>
+                <h2>{{ labourer.name }}</h2>
+                <p><strong>ID:</strong> {{ labourer.id_number }}</p>
+                <p><strong>Designation:</strong> {{ labourer.designation }}</p>
+                <p><strong>Action:</strong> {{ action|title }}</p>
+            </div>
+        </div>
+        
+        <div class="camera-section">
+            <h3>Step 1: Take Your Photo</h3>
+            <p>Position your face clearly in the frame</p>
+            
+            <video id="video" autoplay playsinline></video>
+            
+            <div class="controls">
+                <button id="capture-btn" class="btn btn-primary">📷 Capture Photo</button>
+                <button id="verify-btn" class="btn btn-secondary" style="display:none;">✅ Verify Photo</button>
+                <button id="retake-btn" class="btn btn-danger" style="display:none;">🔄 Retake</button>
+            </div>
+            
+            <canvas id="canvas" style="display:none;"></canvas>
+            
+            <div id="result" class="result"></div>
+            
+            <div id="comparison" class="comparison" style="display:none;">
+                <div>
+                    <h4>Registered Photo</h4>
+                    {% if labourer.portrait_image %}
+                    <img src="{{ labourer.portrait_image.url }}" id="registered-photo">
+                    {% endif %}
+                </div>
+                <div>
+                    <h4>Captured Photo</h4>
+                    <img id="captured-photo">
+                </div>
+            </div>
+            
+            <div id="actions" style="display:none; margin-top: 20px;">
+                <button id="proceed-btn" class="btn btn-primary" style="display:none;">✅ Proceed with {{ action }}</button>
+                <button id="retry-btn" class="btn btn-danger">🔄 Try Again</button>
+                <a href="{% url 'attendance' %}" class="btn">❌ Cancel</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const captureBtn = document.getElementById('capture-btn');
+        const verifyBtn = document.getElementById('verify-btn');
+        const retakeBtn = document.getElementById('retake-btn');
+        const resultDiv = document.getElementById('result');
+        const comparisonDiv = document.getElementById('comparison');
+        const actionsDiv = document.getElementById('actions');
+        const proceedBtn = document.getElementById('proceed-btn');
+        const retryBtn = document.getElementById('retry-btn');
+        const capturedPhotoImg = document.getElementById('captured-photo');
+        
+        let capturedImage = null;
+        let verificationResult = null;
+        
+        // Start camera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    } 
+                });
+                video.srcObject = stream;
+            } catch (error) {
+                alert('Camera access denied. Please allow camera access.');
+                console.error('Camera error:', error);
+            }
+        }
+        
+        // Capture photo
+        captureBtn.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            
+            capturedImage = canvas.toDataURL('image/jpeg');
+            capturedPhotoImg.src = capturedImage;
+            
+            // Show captured image and hide video
+            video.style.display = 'none';
+            comparisonDiv.style.display = 'flex';
+            
+            // Update buttons
+            captureBtn.style.display = 'none';
+            verifyBtn.style.display = 'inline-block';
+            retakeBtn.style.display = 'inline-block';
+        });
+        
+        // Retake photo
+        retakeBtn.addEventListener('click', () => {
+            video.style.display = 'block';
+            comparisonDiv.style.display = 'none';
+            resultDiv.style.display = 'none';
+            actionsDiv.style.display = 'none';
+            
+            captureBtn.style.display = 'inline-block';
+            verifyBtn.style.display = 'none';
+            retakeBtn.style.display = 'none';
+        });
+        
+        // Verify photo
+        verifyBtn.addEventListener('click', async () => {
+            if (!capturedImage) return;
+            
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = 'Verifying...';
+            
+            try {
+                const response = await fetch('{% url "verify_face_api" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        labourer_id: {{ labourer.id }},
+                        image: capturedImage
+                    })
+                });
+                
+                const data = await response.json();
+                verificationResult = data;
+                
+                // Show result
+                showResult(data);
+                
+            } catch (error) {
+                console.error('Verification error:', error);
+                showError('Verification failed. Please try again.');
+            } finally {
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = '✅ Verify Photo';
+            }
+        });
+        
+        // Show verification result
+        function showResult(data) {
+            resultDiv.style.display = 'block';
+            actionsDiv.style.display = 'block';
+            
+            let similarityClass = 'low';
+            if (data.similarity >= 80) similarityClass = 'high';
+            else if (data.similarity >= 60) similarityClass = 'medium';
+            
+            if (data.verified) {
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h3>✅ Verification Successful!</h3>
+                    <div class="similarity ${similarityClass}">${data.similarity}% Match</div>
+                    <p>${data.message}</p>
+                    <p>Hash Match: ${data.hash_match ? 'Yes' : 'No'}</p>
+                    <p>Pixel Similarity: ${data.pixel_similarity}%</p>
+                `;
+                proceedBtn.style.display = 'inline-block';
+            } else {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Verification Failed</h3>
+                    <div class="similarity ${similarityClass}">${data.similarity}% Match</div>
+                    <p>${data.message}</p>
+                    <p>Hash Match: ${data.hash_match ? 'Yes' : 'No'}</p>
+                    <p>Pixel Similarity: ${data.pixel_similarity}%</p>
+                    <p><strong>Minimum required: 70%</strong></p>
+                `;
+                proceedBtn.style.display = 'none';
+            }
+        }
+        
+        function showError(message) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result error';
+            resultDiv.innerHTML = `<h3>❌ Error</h3><p>${message}</p>`;
+        }
+        
+        // Proceed with attendance
+        proceedBtn.addEventListener('click', async () => {
+            proceedBtn.disabled = true;
+            proceedBtn.textContent = 'Processing...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('action', '{{ action }}');
+                formData.append('captured_image', capturedImage);
+                formData.append('similarity', verificationResult.similarity);
+                formData.append('verified', verificationResult.verified);
+                formData.append('location', 'Main Gate');
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                
+                const response = await fetch('{% url "process_attendance" labourer.id %}', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    window.location.href = '{% url "attendance" %}';
+                } else {
+                    alert(data.message);
+                    proceedBtn.disabled = false;
+                    proceedBtn.textContent = '✅ Proceed with {{ action }}';
+                }
+                
+            } catch (error) {
+                console.error('Attendance error:', error);
+                alert('Error processing attendance');
+                proceedBtn.disabled = false;
+                proceedBtn.textContent = '✅ Proceed with {{ action }}';
+            }
+        });
+        
+        // Retry
+        retryBtn.addEventListener('click', () => {
+            retakeBtn.click();
+        });
+        
+        // Initialize
+        startCamera();
+        
+        // Stop camera on page unload
+        window.addEventListener('beforeunload', () => {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

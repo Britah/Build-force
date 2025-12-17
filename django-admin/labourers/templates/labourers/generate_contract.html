@@ -1,0 +1,117 @@
+{% extends 'labourers/base.html' %}
+{% load static %}
+
+{% block title %}Generate Contract - {{labourer.full_name}}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 40px auto;">
+    <div class="card shadow-lg">
+        <div class="card-header bg-success text-white">
+            <h3><i class="fas fa-file-contract"></i> Generate Employment Contract</h3>
+        </div>
+        
+        <div class="card-body">
+            <!-- Labourer Info -->
+            <div class="labourer-info mb-4 p-3" style="background: #f0f8ff; border-left: 4px solid #007bff; border-radius: 5px;">
+                <h5>Employee Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> {{labourer.full_name}}</p>
+                        <p><strong>Employee ID:</strong> {{labourer.serial_number}}</p>
+                        <p><strong>National ID:</strong> {{labourer.national_id}}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Phone:</strong> {{labourer.phone_number}}</p>
+                        <p><strong>Email:</strong> {{labourer.email|default:"Not provided"}}</p>
+                        <p><strong>Role:</strong> {{labourer.role.name|default:"Not assigned"}}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Contract Generation Form -->
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="template_id" class="form-label"><strong>Select Contract Template *</strong></label>
+                    <select name="template_id" id="template_id" class="form-control" required>
+                        <option value="">-- Choose Template --</option>
+                        {% for template in templates %}
+                        <option value="{{template.id}}" 
+                                data-description="{{template.description}}"
+                                data-type="{{template.get_template_type_display}}">
+                            {{template.name}} (v{{template.version}}) - {{template.get_template_type_display}}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div id="templateDescription" class="mt-2 text-muted" style="display: none;"></div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="start_date" class="form-label"><strong>Start Date *</strong></label>
+                        <input type="date" name="start_date" id="start_date" class="form-control" required>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="end_date" class="form-label"><strong>End Date</strong> (Optional)</label>
+                        <input type="date" name="end_date" id="end_date" class="form-control">
+                        <small class="text-muted">Leave blank for ongoing contract</small>
+                    </div>
+                </div>
+                
+                <!-- Available Tags Info -->
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Template Tags</h6>
+                    <p class="mb-1">The selected template will automatically fill in the following details:</p>
+                    <ul class="mb-0" style="column-count: 2;">
+                        <li>Full Name: <code>{{labourer.full_name}}</code></li>
+                        <li>Employee ID: <code>{{labourer.serial_number}}</code></li>
+                        <li>National ID: <code>{{labourer.national_id}}</code></li>
+                        <li>Phone: <code>{{labourer.phone_number}}</code></li>
+                        <li>Email: <code>{{labourer.email|default:"N/A"}}</code></li>
+                        <li>Role: <code>{{labourer.role.name|default:"N/A"}}</code></li>
+                        <li>Project: <code>{{labourer.project.name|default:"N/A"}}</code></li>
+                        <li>Contract dates (selected above)</li>
+                    </ul>
+                </div>
+                
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-file-signature"></i> Generate Contract
+                    </button>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Show template description when selected
+    document.getElementById('template_id').addEventListener('change', function() {
+        const option = this.options[this.selectedIndex];
+        const description = option.getAttribute('data-description');
+        const type = option.getAttribute('data-type');
+        const descDiv = document.getElementById('templateDescription');
+        
+        if (description) {
+            descDiv.innerHTML = `<strong>${type}:</strong> ${description}`;
+            descDiv.style.display = 'block';
+        } else {
+            descDiv.style.display = 'none';
+        }
+    });
+    
+    // Set minimum start date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('start_date').setAttribute('min', today);
+    
+    // Ensure end date is after start date
+    document.getElementById('start_date').addEventListener('change', function() {
+        document.getElementById('end_date').setAttribute('min', this.value);
+    });
+</script>
+{% endblock %}

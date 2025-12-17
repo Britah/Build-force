@@ -1,0 +1,399 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings - Labour Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .settings-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .settings-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 20px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-body {
+            padding: 25px;
+        }
+        
+        .btn-primary {
+            background: var(--secondary-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: var(--success-color);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+        }
+        
+        .btn-warning {
+            background: var(--warning-color);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+        }
+        
+        .btn-danger {
+            background: var(--accent-color);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+        }
+        
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table thead {
+            background: #f8f9fa;
+        }
+        
+        .table thead th {
+            border-bottom: 2px solid var(--secondary-color);
+            padding: 15px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .badge-active {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        .badge-inactive {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        .back-btn {
+            background: white;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .admin-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--success-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .admin-link:hover {
+            background: #229954;
+            color: white;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-1"><i class="fas fa-cog"></i> System Settings</h1>
+                    <p class="text-muted mb-0">Manage projects, roles, supervisors, and system configuration</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'dashboard' %}" class="back-btn">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <a href="/admin/" class="admin-link" target="_blank">
+                        <i class="fas fa-shield-alt"></i> Django Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects Section -->
+        <div class="settings-card">
+            <div class="card-header">
+                <span><i class="fas fa-building"></i> Projects</span>
+                <a href="/admin/labourers/project/add/" target="_blank" class="btn btn-success btn-sm">
+                    <i class="fas fa-plus"></i> Add New Project
+                </a>
+            </div>
+            <div class="card-body">
+                {% if projects %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Project Name</th>
+                                    <th>Site ID</th>
+                                    <th>Contact Email</th>
+                                    <th>Contact Phone</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for project in projects %}
+                                <tr>
+                                    <td><strong>{{project.name}}</strong></td>
+                                    <td>{{project.site_identifier}}</td>
+                                    <td>{{project.company_email}}</td>
+                                    <td>{{project.company_phone}}</td>
+                                    <td>
+                                        {% if project.is_active %}
+                                            <span class="badge badge-active">Active</span>
+                                        {% else %}
+                                            <span class="badge badge-inactive">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="/admin/labourers/project/{{project.id}}/change/" target="_blank" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-building"></i>
+                        <h5>No Projects Found</h5>
+                        <p>Add your first project using the button above</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Roles Section -->
+        <div class="settings-card">
+            <div class="card-header">
+                <span><i class="fas fa-user-tag"></i> Roles & Designations</span>
+                <a href="/admin/labourers/role/add/" target="_blank" class="btn btn-success btn-sm">
+                    <i class="fas fa-plus"></i> Add New Role
+                </a>
+            </div>
+            <div class="card-body">
+                {% if roles %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Role Name</th>
+                                    <th>Base Wage</th>
+                                    <th>Overtime Rate</th>
+                                    <th>Work Hours/Day</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for role in roles %}
+                                <tr>
+                                    <td><strong>{{role.name}}</strong></td>
+                                    <td>${{role.base_wage|default:"0"}}</td>
+                                    <td>${{role.overtime_rate|default:"0"}}</td>
+                                    <td>{{role.work_hours_per_day|default:"8"}} hrs</td>
+                                    <td>{{role.description|truncatewords:10|default:"No description"}}</td>
+                                    <td>
+                                        <a href="/admin/labourers/role/{{role.id}}/change/" target="_blank" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-user-tag"></i>
+                        <h5>No Roles Found</h5>
+                        <p>Add your first role using the button above</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Supervisors Section -->
+        <div class="settings-card">
+            <div class="card-header">
+                <span><i class="fas fa-user-shield"></i> Supervisors</span>
+                <a href="/admin/labourers/supervisor/add/" target="_blank" class="btn btn-success btn-sm">
+                    <i class="fas fa-plus"></i> Add New Supervisor
+                </a>
+            </div>
+            <div class="card-body">
+                {% if supervisors %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Department</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for supervisor in supervisors %}
+                                <tr>
+                                    <td><strong>{{supervisor.user.username}}</strong></td>
+                                    <td>{{supervisor.user.first_name}} {{supervisor.user.last_name}}</td>
+                                    <td>{{supervisor.user.email|default:"N/A"}}</td>
+                                    <td>{{supervisor.phone|default:"N/A"}}</td>
+                                    <td>{{supervisor.department|default:"N/A"}}</td>
+                                    <td>
+                                        <a href="/admin/labourers/supervisor/{{supervisor.id}}/change/" target="_blank" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-user-shield"></i>
+                        <h5>No Supervisors Found</h5>
+                        <p>Add your first supervisor using the button above</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="settings-card">
+            <div class="card-header">
+                <span><i class="fas fa-link"></i> Quick Links</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <a href="/admin/auth/user/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-users"></i> Manage Users
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="/admin/labourers/contract/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-file-contract"></i> Manage Contracts
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="/admin/labourers/attendancelog/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-clock"></i> Attendance Logs
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="/admin/labourers/labourer/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-hard-hat"></i> Manage Labourers
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="/admin/labourers/contracttemplate/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-file-alt"></i> Contract Templates
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="/admin/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-cogs"></i> Full Admin Panel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

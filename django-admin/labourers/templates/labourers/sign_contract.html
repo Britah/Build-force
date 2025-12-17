@@ -1,0 +1,205 @@
+{% extends 'labourers/base.html' %}
+{% load static %}
+
+{% block title %}Sign Contract - {{contract.contract_number}}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 900px; margin: 40px auto;">
+    <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+            <h3><i class="fas fa-file-signature"></i> Digital Contract Signing</h3>
+        </div>
+        
+        <div class="card-body">
+            <!-- Contract Details -->
+            <div class="alert alert-info">
+                <h5>Contract Information</h5>
+                <p><strong>Contract Number:</strong> {{contract.contract_number}}</p>
+                <p><strong>Employee:</strong> {{contract.labourer.full_name}} ({{contract.labourer.serial_number}})</p>
+                <p><strong>Start Date:</strong> {{contract.start_date|date:"F d, Y"}}</p>
+                {% if contract.end_date %}
+                <p><strong>End Date:</strong> {{contract.end_date|date:"F d, Y"}}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Contract Content -->
+            <div class="contract-content" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 20px; margin: 20px 0; background: #f9f9f9;">
+                <div style="white-space: pre-wrap;">{{contract.generated_content}}</div>
+            </div>
+            
+            {% if not contract.signature_verified %}
+            <!-- Signature Section -->
+            <div class="signature-section">
+                <h5 class="mt-4">Your Signature</h5>
+                <p class="text-muted">Please sign below to acknowledge and accept this contract</p>
+                
+                <div class="signature-pad-container" style="border: 2px solid #007bff; border-radius: 10px; padding: 10px; background: white;">
+                    <canvas id="signaturePad" style="width: 100%; height: 200px; cursor: crosshair; border: 1px dashed #ccc;"></canvas>
+                </div>
+                
+                <div class="signature-buttons mt-3">
+                    <button type="button" class="btn btn-secondary" onclick="clearSignature()">
+                        <i class="fas fa-eraser"></i> Clear
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="saveSignature()">
+                        <i class="fas fa-check"></i> Confirm & Sign
+                    </button>
+                </div>
+                
+                <!-- Hidden form -->
+                <form id="signatureForm" method="POST" style="display: none;">
+                    {% csrf_token %}
+                    <input type="hidden" id="signatureData" name="signature_data">
+                </form>
+            </div>
+            {% else %}
+            <!-- Already Signed -->
+            <div class="alert alert-success mt-4">
+                <h5><i class="fas fa-check-circle"></i> Contract Signed</h5>
+                <p>This contract was signed on {{contract.signature_timestamp|date:"F d, Y \a\t H:i"}}</p>
+                {% if contract.signature_image %}
+                <div class="mt-3">
+                    <strong>Signature:</strong><br>
+                    <img src="{{contract.signature_image.url}}" alt="Signature" style="max-width: 300px; border: 1px solid #ddd; padding: 10px; background: white;">
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- Back Button -->
+            <div class="mt-4">
+                <a href="{% url 'view_contract' contract.id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Contract
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .signature-pad-container {
+        margin: 20px 0;
+    }
+    
+    #signaturePad {
+        touch-action: none;
+    }
+    
+    .contract-content {
+        font-family: 'Georgia', serif;
+        line-height: 1.8;
+    }
+</style>
+
+<script>
+    const canvas = document.getElementById('signaturePad');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Drawing state
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    
+    // Drawing settings
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Mouse events
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+    
+    // Touch events for mobile
+    canvas.addEventListener('touchstart', handleTouchStart);
+    canvas.addEventListener('touchmove', handleTouchMove);
+    canvas.addEventListener('touchend', stopDrawing);
+    
+    function startDrawing(e) {
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
+    }
+    
+    function draw(e) {
+        if (!isDrawing) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        
+        lastX = x;
+        lastY = y;
+    }
+    
+    function stopDrawing() {
+        isDrawing = false;
+    }
+    
+    function handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        lastX = touch.clientX - rect.left;
+        lastY = touch.clientY - rect.top;
+        isDrawing = true;
+    }
+    
+    function handleTouchMove(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        
+        lastX = x;
+        lastY = y;
+    }
+    
+    function clearSignature() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    function saveSignature() {
+        // Check if canvas is empty
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const isEmpty = !imageData.data.some(channel => channel !== 0);
+        
+        if (isEmpty) {
+            alert('Please provide your signature first');
+            return;
+        }
+        
+        // Convert canvas to base64
+        const signatureData = canvas.toDataURL('image/png');
+        
+        // Set hidden input and submit form
+        document.getElementById('signatureData').value = signatureData;
+        document.getElementById('signatureForm').submit();
+    }
+</script>
+{% endblock %}

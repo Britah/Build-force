@@ -1,0 +1,1174 @@
+{% extends 'labourers/base.html' %}
+
+{% block title %}Attendance Tracking{% endblock %}
+
+{% block styles %}
+<style>
+    /* Modal styles for camera */
+    .camera-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+    }
+    .camera-content {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        max-width: 900px;
+        max-height: 90vh;
+        overflow: auto;
+        width: 90%;
+    }
+    .photo-comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .photo-box {
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+    }
+    .photo-box h4 {
+        margin-bottom: 10px;
+        color: #333;
+    }
+    .captured-photo, .stored-photo {
+        width: 100%;
+        max-width: 300px;
+        height: auto;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+    }
+    .camera-view {
+        width: 100%;
+        max-width: 640px;
+        height: auto;
+        border-radius: 8px;
+        border: 3px solid #3498db;
+        margin: 10px 0;
+    }
+    .verification-status {
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        text-align: center;
+        font-weight: bold;
+    }
+    .verification-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .verification-failed {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    .btn-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        justify-content: center;
+    }
+    .camera-controls {
+        display: flex;
+        gap: 10px;
+        margin: 15px 0;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .photo-required {
+        color: #e74c3c;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px;">
+        <h2 style="margin: 0; color: #1a2980;"><i class="fas fa-clock"></i> Attendance Tracking</h2>
+        <p style="color: #666; margin: 10px 0 0 0;">Date: {{ today }}</p>
+    </div>
+
+    <!-- Location Status Alert -->
+    <div id="locationStatusBox" style="display: none; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <div id="locationStatusContent"></div>
+    </div>
+    
+<div class="card">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+        <!-- Check-in Section -->
+        <div class="checkin-section" style="border: 2px solid #2ecc71; padding: 20px; border-radius: 10px;">
+            <h3><i class="fas fa-sign-in-alt" style="color: #2ecc71;"></i> Check In</h3>
+            <div style="margin-top: 15px;">
+                <select id="checkinProject" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 15px;" onchange="checkLocationStatus('checkin')">
+                    <option value="">Select Project</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" data-boundaries="{{ project.boundary_coordinates|escapejs }}">
+                        {{ project.name }} - {{ project.location }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <select id="checkinLabourer" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 15px;">
+                    <option value="">Select Labourer to Check In</option>
+                    {% for labourer in labourers %}
+                    <option value="{{ labourer.id }}" data-name="{{ labourer.full_name }}" data-id="{{ labourer.national_id }}" data-photo="{% if labourer.portrait_photo %}{{ labourer.portrait_photo.url }}{% endif %}">
+                        {{ labourer.full_name }} ({{ labourer.national_id }}) - {{ labourer.designation }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-success" style="width: 100%; padding: 12px; margin-bottom: 10px;" onclick="startCheckInProcess()" id="checkinBtn">
+                    <i class="fas fa-camera"></i> Check In with Camera
+                </button>
+                <input type="file" id="checkinPhotoUpload" accept="image/*" capture="environment" style="display: none;" onchange="handlePhotoUpload(this, 'checkin')">
+                <button class="btn btn-secondary" style="width: 100%; padding: 12px;" onclick="document.getElementById('checkinPhotoUpload').click()">
+                    <i class="fas fa-mobile-alt"></i> Use Phone Camera
+                </button>
+            </div>
+        </div>
+        
+        <!-- Check-out Section -->
+        <div class="checkout-section" style="border: 2px solid #e74c3c; padding: 20px; border-radius: 10px;">
+            <h3><i class="fas fa-sign-out-alt" style="color: #e74c3c;"></i> Check Out</h3>
+            <div style="margin-top: 15px;">
+                <select id="checkoutProject" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 15px;" onchange="checkLocationStatus('checkout')">
+                    <option value="">Select Project</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" data-boundaries="{{ project.boundary_coordinates|escapejs }}">
+                        {{ project.name }} - {{ project.location }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <select id="checkoutLabourer" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 15px;">
+                    <option value="">Select Labourer to Check Out</option>
+                    {% for labourer in labourers %}
+                    <option value="{{ labourer.id }}" data-name="{{ labourer.full_name }}" data-id="{{ labourer.national_id }}" data-photo="{% if labourer.portrait_photo %}{{ labourer.portrait_photo.url }}{% endif %}">
+                        {{ labourer.full_name }} ({{ labourer.national_id }}) - {{ labourer.designation }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-danger" style="width: 100%; padding: 12px; margin-bottom: 10px;" onclick="startCheckOutProcess()" id="checkoutBtn">
+                    <i class="fas fa-camera"></i> Check Out with Camera
+                </button>
+                <input type="file" id="checkoutPhotoUpload" accept="image/*" capture="environment" style="display: none;" onchange="handlePhotoUpload(this, 'checkout')">
+                <button class="btn btn-secondary" style="width: 100%; padding: 12px;" onclick="document.getElementById('checkoutPhotoUpload').click()">
+                    <i class="fas fa-mobile-alt"></i> Use Phone Camera
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pending Check-ins for Verification -->
+    {% if pending_checkins %}
+    <div class="attendance-records" style="margin-top: 30px;">
+        <h3 style="color: #f39c12;"><i class="fas fa-user-check"></i> Pending Check-in Verifications ({{ pending_checkins|length }})</h3>
+        <div style="margin-top: 15px; overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background-color: #fff3cd;">
+                    <tr>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">#</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Time</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Labourer Name</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">ID Number</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Project</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Confidence</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Photo</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for checkin in pending_checkins %}
+                    <tr style="border-bottom: 1px solid #dee2e6; background: #fffbf0;">
+                        <td style="padding: 12px;">{{ forloop.counter }}</td>
+                        <td style="padding: 12px;">{{ checkin.timestamp|time:"H:i" }}</td>
+                        <td style="padding: 12px; font-weight: 500;">{{ checkin.labourer.full_name }}</td>
+                        <td style="padding: 12px;">{{ checkin.labourer.national_id }}</td>
+                        <td style="padding: 12px;">{{ checkin.project.name }}</td>
+                        <td style="padding: 12px;">
+                            {% if checkin.facial_match_confidence %}
+                                <span style="padding: 4px 8px; border-radius: 12px; font-size: 12px;
+                                    {% if checkin.facial_match_confidence >= 70 %}
+                                        background: #d4edda; color: #155724;
+                                    {% elif checkin.facial_match_confidence >= 50 %}
+                                        background: #fff3cd; color: #856404;
+                                    {% else %}
+                                        background: #f8d7da; color: #721c24;
+                                    {% endif %}">
+                                    {{ checkin.facial_match_confidence|floatformat:1 }}%
+                                </span>
+                            {% else %}
+                                <span style="color: #999;">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px;">
+                            {% if checkin.facial_recognition_photo %}
+                                <img src="{{ checkin.facial_recognition_photo.url }}" 
+                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px; cursor: pointer;"
+                                     onclick="viewComparisonPhoto('{{ checkin.facial_recognition_photo.url }}', '{{ checkin.labourer.portrait_photo.url }}', '{{ checkin.labourer.full_name }}')"
+                                     title="Click to compare photos">
+                            {% else %}
+                                <span style="color: #999;">No photo</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px; text-align: center;">
+                            <button onclick="verifyAttendanceCheckIn({{ checkin.id }}, 'approve')" 
+                                    style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; margin-right: 5px; font-size: 13px;"
+                                    title="Approve Check-in">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button onclick="verifyAttendanceCheckIn({{ checkin.id }}, 'reject')" 
+                                    style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 13px;"
+                                    title="Reject Check-in">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Today's Attendance Records -->
+    <div class="attendance-records">
+        <h3><i class="fas fa-list-alt"></i> Today's Attendance Records ({{ today }})</h3>
+        <div style="margin-top: 15px; overflow-x: auto;">
+            <table id="attendanceTable" style="width: 100%; border-collapse: collapse;">
+                <thead style="background-color: #f8f9fa;">
+                    <tr>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">#</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Labourer Name</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">ID Number</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Type</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Time</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Location/Notes</th>
+                        <th style="padding: 12px; border: 1px solid #dee2e6;">Verified</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attendance in today_attendances %}
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 12px;">{{ forloop.counter }}</td>
+                        <td style="padding: 12px;">{{ attendance.labourer.full_name }}</td>
+                        <td style="padding: 12px;">{{ attendance.labourer.national_id }}</td>
+                        <td style="padding: 12px;">
+                            {% if attendance.log_type == 'Check-In' %}
+                            <span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 20px; font-size: 12px;">
+                                <i class="fas fa-sign-in-alt"></i> Check In
+                            </span>
+                            {% else %}
+                            <span style="background: #f8d7da; color: #721c24; padding: 4px 12px; border-radius: 20px; font-size: 12px;">
+                                <i class="fas fa-sign-out-alt"></i> Check Out
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px;">{{ attendance.log_timestamp|time:"H:i:s" }}</td>
+                    
+                        <td style="padding: 12px;">
+                            {% if 'Verified: True' in attendance.notes %}
+                            <span style="color: #2ecc71;"><i class="fas fa-check-circle"></i> Verified</span>
+                            {% else %}
+                            <span style="color: #e74c3c;"><i class="fas fa-times-circle"></i> Not Verified</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 30px; color: #666;">
+                            <i class="fas fa-clock" style="font-size: 48px; margin-bottom: 10px; display: block;"></i>
+                            <p>No attendance records for today yet.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Camera Modal for Verification -->
+<div id="cameraModal" class="camera-modal">
+    <div class="camera-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 id="modalTitle"><i class="fas fa-camera"></i> Attendance Verification</h3>
+            <button onclick="closeCameraModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">×</button>
+        </div>
+        
+        <!-- Camera Preview -->
+        <div id="cameraSection" style="text-align: center;">
+            <video id="cameraView" autoplay playsinline class="camera-view"></video>
+        
+        <div class="camera-controls">
+            <button class="btn btn-primary" onclick="capturePhoto()" id="captureBtn">
+                <i class="fas fa-camera"></i> Capture Photo
+            </button>
+            <button class="btn btn-secondary" onclick="retakePhoto()" id="retakeBtn" style="display: none;">
+                <i class="fas fa-redo"></i> Retake
+            </button>
+            <button class="btn btn-warning" onclick="closeCameraModal()">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+        </div>
+        
+        <!-- Photo Comparison -->
+        <div id="photoComparison" style="display: none;">
+            <h4>Photo Verification</h4>
+            <div class="photo-comparison">
+                <div class="photo-box">
+                    <h4>Live Capture</h4>
+                    <img id="capturedPhoto" class="captured-photo" src="">
+                    <p style="font-size: 12px; color: #666;">Just captured</p>
+                </div>
+                <div class="photo-box">
+                    <h4>Stored Photo</h4>
+                    <img id="storedPhoto" class="stored-photo" src="">
+                    <p style="font-size: 12px; color: #666;">On record</p>
+                </div>
+            </div>
+            
+            <div id="verificationStatus" class="verification-status">
+                <p>Compare the photos. If they match, click "Confirm Attendance"</p>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="confirmAttendance()" id="confirmBtn">
+                    <i class="fas fa-check"></i> Confirm Attendance
+                </button>
+                <button class="btn btn-secondary" onclick="retakePhoto()">
+                    <i class="fas fa-redo"></i> Retake Photo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Area -->
+<div id="notification" style="display: none; position: fixed; top: 90px; right: 20px; padding: 15px 20px; border-radius: 5px; z-index: 1000;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Camera variables
+let cameraStream = null;
+let capturedPhotoData = null;
+let currentAction = null; // 'checkin' or 'checkout'
+let selectedLabourerId = null;
+let selectedLocation = null;
+
+// Show notification
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.style.display = 'block';
+    
+    if (type === 'error') {
+        notification.style.background = '#f8d7da';
+        notification.style.color = '#721c24';
+        notification.style.border = '1px solid #f5c6cb';
+    } else if (type === 'info') {
+        notification.style.background = '#d1ecf1';
+        notification.style.color = '#0c5460';
+        notification.style.border = '1px solid #bee5eb';
+    } else {
+        notification.style.background = '#d4edda';
+        notification.style.color = '#155724';
+        notification.style.border = '1px solid #c3e6cb';
+    }
+    
+    setTimeout(() => notification.style.display = 'none', 3000);
+}
+
+
+// Start check-in process
+function startCheckInProcess() {
+    console.log('Starting check-in process...');
+    const projectId = document.getElementById('checkinProject').value;
+    const labourerId = document.getElementById('checkinLabourer').value;
+    
+    console.log('Project ID:', projectId);
+    console.log('Labourer ID:', labourerId);
+    
+    if (!projectId) {
+        alert('Please select a project');
+        showNotification('Please select a project', 'error');
+        return;
+    }
+    
+    if (!labourerId) {
+        alert('Please select a labourer');
+        showNotification('Please select a labourer', 'error');
+        return;
+    }
+    
+    currentAction = 'checkin';
+    selectedLabourerId = labourerId;
+    selectedLocation = '';  // No location field anymore
+    
+    console.log('Opening camera modal...');
+    openCameraModal('Check In Verification');
+}
+
+// Start check-out process
+function startCheckOutProcess() {
+    console.log('Starting check-out process...');
+    const projectId = document.getElementById('checkoutProject').value;
+    const labourerId = document.getElementById('checkoutLabourer').value;
+    
+    console.log('Project ID:', projectId);
+    console.log('Labourer ID:', labourerId);
+    
+    if (!projectId) {
+        alert('Please select a project');
+        showNotification('Please select a project', 'error');
+        return;
+    }
+    
+    if (!labourerId) {
+        alert('Please select a labourer');
+        showNotification('Please select a labourer', 'error');
+        return;
+    }
+    
+    currentAction = 'checkout';
+    selectedLabourerId = labourerId;
+    selectedLocation = '';  // No location field anymore
+    
+    console.log('Opening camera modal...');
+    openCameraModal('Check Out Verification');
+}
+
+// Open camera modal
+function openCameraModal(title) {
+    console.log('openCameraModal called with title:', title);
+    
+    const modal = document.getElementById('cameraModal');
+    if (!modal) {
+        console.error('Camera modal element not found!');
+        alert('Error: Camera modal not found on page');
+        return;
+    }
+    
+    console.log('Setting modal display to flex...');
+    modal.style.display = 'flex';
+    
+    document.getElementById('modalTitle').innerHTML = `<i class="fas fa-camera"></i> ${title}`;
+    document.getElementById('photoComparison').style.display = 'none';
+    document.getElementById('cameraSection').style.display = 'block';
+    document.getElementById('captureBtn').style.display = 'block';
+    document.getElementById('retakeBtn').style.display = 'none';
+    
+    // Load stored photo
+    const selectId = currentAction === 'checkin' ? 'checkinLabourer' : 'checkoutLabourer';
+    const selectElement = document.getElementById(selectId);
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const storedPhotoUrl = selectedOption.getAttribute('data-photo');
+    
+    console.log('Stored photo URL:', storedPhotoUrl);
+    
+    if (storedPhotoUrl) {
+        document.getElementById('storedPhoto').src = storedPhotoUrl;
+    } else {
+        document.getElementById('storedPhoto').src = '/static/images/no-photo.png';
+    }
+    
+    console.log('Starting camera...');
+    // Start camera
+    startCamera();
+}
+
+// Close camera modal
+function closeCameraModal() {
+    document.getElementById('cameraModal').style.display = 'none';
+    stopCamera();
+    currentAction = null;
+    selectedLabourerId = null;
+    selectedLocation = null;
+    capturedPhotoData = null;
+}
+
+// Start camera
+async function startCamera() {
+    try {
+        // Log browser info for debugging
+        console.log('Navigator:', navigator.userAgent);
+        console.log('Protocol:', window.location.protocol);
+        console.log('Hostname:', window.location.hostname);
+        console.log('Has mediaDevices:', !!navigator.mediaDevices);
+        console.log('Has getUserMedia:', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+        console.log('Is secure context:', window.isSecureContext);
+        
+        // Check if browser supports camera API
+        // Note: Some browsers require HTTPS even for local IPs
+        if (!navigator.mediaDevices) {
+            const errorMsg = `❌ Camera API not available.\n\nYour browser doesn't support camera on HTTP connections.\n\nSolutions:\n1. Use "Use Phone Camera" button (works on all browsers)\n2. Access via localhost: http://127.0.0.1:8000\n3. Use Chrome and enable: chrome://flags/#unsafely-treat-insecure-origin-as-secure\n   Then add: http://${window.location.hostname}:8000`;
+            console.error('MediaDevices not available');
+            console.error('Browser may require HTTPS or localhost');
+            showNotification('Camera not available. Use "Use Phone Camera" button.', 'error');
+            alert(errorMsg);
+            closeCameraModal();
+            return;
+        }
+        
+        if (!navigator.mediaDevices.getUserMedia) {
+            const errorMsg = `❌ getUserMedia not supported.\n\nPlease try:\n- Chrome browser (latest version)\n- Firefox browser (latest version)\n- Edge browser (latest version)\n\nOr use "Use Phone Camera" button instead.`;
+            console.error('getUserMedia not supported');
+            showNotification('Camera not supported. Use "Use Phone Camera" button.', 'error');
+            alert(errorMsg);
+            closeCameraModal();
+            return;
+        }
+        
+        // Stop existing stream if any
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+        
+        showNotification('📷 Requesting camera access... Please click "Allow" when prompted', 'info');
+        
+        // Simple constraints - more compatible
+        const constraints = {
+            video: true,
+            audio: false
+        };
+        
+        console.log('Requesting camera with constraints:', constraints);
+        
+        // Request camera access
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        console.log('Camera stream obtained:', cameraStream);
+        
+        // Display video stream
+        const video = document.getElementById('cameraView');
+        video.srcObject = cameraStream;
+        
+        console.log('Video element configured');
+        
+        // Wait for video to be ready
+        video.onloadedmetadata = () => {
+            console.log('Video metadata loaded');
+            video.play().then(() => {
+                console.log('Video playing');
+                showNotification('✅ Camera ready! Position your face and click "Capture Photo"', 'success');
+            }).catch(err => {
+                console.error('Error playing video:', err);
+                showNotification('Error starting video: ' + err.message, 'error');
+            });
+        };
+        
+    } catch (error) {
+        console.error('Camera error:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        
+        let errorMsg = 'Camera error: ' + error.message;
+        let suggestion = '';
+        
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            errorMsg = '🚫 Camera access denied';
+            suggestion = '\n\nTo fix:\n1. Click the camera icon in your browser address bar\n2. Select "Always allow"\n3. Refresh the page and try again';
+        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+            errorMsg = '📹 No camera detected';
+            suggestion = '\n\nPlease:\n1. Connect a webcam\n2. Or use "Use Phone Camera" button';
+        } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+            errorMsg = '⚠️ Camera is busy';
+            suggestion = '\n\nPlease:\n1. Close other apps using the camera\n2. Try again';
+        } else if (error.name === 'NotSupportedError' || error.name === 'TypeError') {
+            errorMsg = '❌ Camera not supported';
+            suggestion = '\n\nPlease use:\n- Chrome browser\n- Firefox browser\n- Edge browser';
+        }
+        
+        showNotification(errorMsg, 'error');
+        alert(errorMsg + suggestion);
+        closeCameraModal();
+    }
+}
+
+// Stop camera
+function stopCamera() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        const video = document.getElementById('cameraView');
+        video.srcObject = null;
+        cameraStream = null;
+    }
+}
+
+// Capture photo from camera
+function capturePhoto() {
+    if (!cameraStream) {
+        showNotification('Camera not started', 'error');
+        return;
+    }
+    
+    try {
+        const video = document.getElementById('cameraView');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        // Convert to base64 JPEG
+        capturedPhotoData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Display captured photo
+        document.getElementById('capturedPhoto').src = capturedPhotoData;
+        
+        // Show photo comparison
+        document.getElementById('photoComparison').style.display = 'block';
+        document.getElementById('captureBtn').style.display = 'none';
+        document.getElementById('retakeBtn').style.display = 'block';
+        
+        // Show verification message
+        const selectId = currentAction === 'checkin' ? 'checkinLabourer' : 'checkoutLabourer';
+        const selectElement = document.getElementById(selectId);
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        const labourerName = selectedOption.getAttribute('data-name');
+        
+        document.getElementById('verificationStatus').innerHTML = `
+            <div class="verification-success">
+                <i class="fas fa-check-circle"></i> Photo captured for <strong>${labourerName}</strong>
+                <p style="font-size: 14px; margin-top: 5px;">Compare with stored photo. If they match, click "Confirm Attendance"</p>
+            </div>
+        `;
+        
+    } catch (error) {
+        showNotification('Error capturing photo: ' + error.message, 'error');
+    }
+}
+
+// Retake photo
+function retakePhoto() {
+    capturedPhotoData = null;
+    document.getElementById('photoComparison').style.display = 'none';
+    document.getElementById('captureBtn').style.display = 'block';
+    document.getElementById('retakeBtn').style.display = 'none';
+    showNotification('Ready to take new photo', 'info');
+}
+
+// Confirm attendance after photo verification
+function confirmAttendance() {
+    if (!capturedPhotoData) {
+        showNotification('Please capture a photo first', 'error');
+        return;
+    }
+    
+    if (currentAction === 'checkin') {
+        proceedWithCheckIn(selectedLabourerId, selectedLocation);
+    } else if (currentAction === 'checkout') {
+        proceedWithCheckOut(selectedLabourerId, selectedLocation);
+    }
+    
+    closeCameraModal();
+}
+
+// Handle photo upload (alternative to camera)
+function handlePhotoUpload(input, action) {
+    if (!input.files || !input.files[0]) {
+        return;
+    }
+    
+    const file = input.files[0];
+    
+    // Validate file type
+    if (!file.type.match('image.*')) {
+        showNotification('Please select an image file', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        capturedPhotoData = e.target.result;
+        currentAction = action;
+        
+        // Get selected labourer and project
+        const selectId = action === 'checkin' ? 'checkinLabourer' : 'checkoutLabourer';
+        const projectId = action === 'checkin' ? 'checkinProject' : 'checkoutProject';
+        
+        const selectElement = document.getElementById(selectId);
+        const projectElement = document.getElementById(projectId);
+        
+        if (!selectElement.value) {
+            showNotification('Please select a labourer first', 'error');
+            input.value = '';
+            return;
+        }
+        
+        if (!projectElement.value) {
+            showNotification('Please select a project first', 'error');
+            input.value = '';
+            return;
+        }
+        
+        selectedLabourerId = selectElement.value;
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        const photoUrl = selectedOption.getAttribute('data-photo');
+        
+        // Show preview modal
+        const modal = document.getElementById('cameraModal');
+        modal.style.display = 'block';
+        
+        document.getElementById('capturedPhoto').src = capturedPhotoData;
+        document.getElementById('storedPhoto').src = photoUrl || '/static/default-avatar.png';
+        document.getElementById('photoComparison').style.display = 'block';
+        document.getElementById('cameraSection').style.display = 'none';
+        
+        showNotification('Photo uploaded! Verify and confirm attendance', 'success');
+        input.value = ''; // Reset file input
+    };
+    
+    reader.readAsDataURL(file);
+}
+
+// Get user's current GPS location
+function getCurrentLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('Geolocation is not supported by your browser'));
+            return;
+        }
+        
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy
+                });
+            },
+            (error) => {
+                let errorMessage = 'Unable to get location: ';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage += 'Location permission denied. Please enable location access.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage += 'Location information unavailable.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage += 'Location request timed out.';
+                        break;
+                    default:
+                        errorMessage += 'Unknown error occurred.';
+                }
+                reject(new Error(errorMessage));
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    });
+}
+
+// Proceed with check-in
+async function proceedWithCheckIn(labourerId, location) {
+    const projectId = document.getElementById('checkinProject').value;
+    
+    try {
+        // Get current GPS location
+        showNotification('Getting your location...', 'info');
+        const gpsLocation = await getCurrentLocation();
+        console.log('GPS Location:', gpsLocation);
+        
+        const formData = new FormData();
+        formData.append('location', location || 'Main Gate');
+        formData.append('verified', 'True');
+        formData.append('project_id', projectId);
+        formData.append('latitude', gpsLocation.latitude);
+        formData.append('longitude', gpsLocation.longitude);
+        formData.append('accuracy', gpsLocation.accuracy);
+        
+        // Send the captured photo for facial verification
+        formData.append('captured_image', capturedPhotoData);
+        
+        const response = await fetch(`/attendance/check-in/${labourerId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('Server response:', text);
+            throw new Error(`Server error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(data.message);
+            // Clear form
+            document.getElementById('checkinProject').value = '';
+            document.getElementById('checkinLabourer').value = '';
+            // Refresh page after 1 second
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification(data.error, 'error');
+        }
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
+}
+
+// Proceed with check-out
+async function proceedWithCheckOut(labourerId, location) {
+    const projectId = document.getElementById('checkoutProject').value;
+    
+    try {
+        // Get current GPS location
+        showNotification('Getting your location...', 'info');
+        const gpsLocation = await getCurrentLocation();
+        console.log('GPS Location:', gpsLocation);
+        
+        const formData = new FormData();
+        formData.append('location', location || 'Main Gate');
+        formData.append('verified', 'True');
+        formData.append('project_id', projectId);
+        formData.append('latitude', gpsLocation.latitude);
+        formData.append('longitude', gpsLocation.longitude);
+        formData.append('accuracy', gpsLocation.accuracy);
+        
+        // Send the captured photo for facial verification
+        formData.append('captured_image', capturedPhotoData);
+        
+        const response = await fetch(`/attendance/check-out/${labourerId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('Server response:', text);
+            throw new Error(`Server error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(data.message);
+            // Clear form
+            document.getElementById('checkoutProject').value = '';
+            document.getElementById('checkoutLabourer').value = '';
+            // Refresh page after 1 second
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification(data.error, 'error');
+        }
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
+}
+
+// Get CSRF token
+function getCsrfToken() {
+    const token = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (token) return token.value;
+    
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith('csrftoken=')) {
+            return cookie.substring('csrftoken='.length);
+        }
+    }
+    return '';
+}
+
+// Auto-refresh attendance table
+setInterval(() => {
+    fetch('/labourers/attendance/')
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newTable = doc.querySelector('.attendance-records');
+            if (newTable) {
+                document.querySelector('.attendance-records').innerHTML = newTable.innerHTML;
+            }
+        })
+        .catch(error => console.error('Error refreshing attendance:', error));
+}, 30000);
+
+// Request permissions on page load
+async function requestPermissions() {
+    console.log('📱 Requesting permissions for mobile device...');
+    
+    // Request Location Permission
+    if (navigator.geolocation) {
+        try {
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                });
+            });
+            console.log('✅ Location permission granted');
+            showNotification('📍 Location access granted', 'success');
+        } catch (error) {
+            console.warn('⚠️ Location permission denied or unavailable');
+            showNotification('⚠️ Location access needed for check-in. Please enable location services.', 'error');
+        }
+    }
+    
+    // Request Camera Permission (for mobile devices)
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'user',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            });
+            console.log('✅ Camera permission granted');
+            showNotification('📷 Camera access granted', 'success');
+            // Stop the stream immediately after getting permission
+            stream.getTracks().forEach(track => track.stop());
+        } catch (error) {
+            console.warn('⚠️ Camera permission denied or unavailable');
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                showNotification('⚠️ Camera access needed for attendance. Please enable camera permission in browser settings.', 'error');
+            }
+        }
+    }
+}
+
+// Document ready - verify all elements exist and request permissions
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded - verifying elements...');
+    
+    const modal = document.getElementById('cameraModal');
+    const checkinBtn = document.querySelector('button[onclick="startCheckInProcess()"]');
+    const checkoutBtn = document.querySelector('button[onclick="startCheckOutProcess()"]');
+    
+    console.log('Camera modal found:', !!modal);
+    console.log('Check-in button found:', !!checkinBtn);
+    console.log('Check-out button found:', !!checkoutBtn);
+    
+    if (!modal) {
+        console.error('ERROR: Camera modal not found!');
+    }
+    
+    if (!checkinBtn) {
+        console.error('ERROR: Check-in button not found!');
+    }
+    
+    if (!checkoutBtn) {
+        console.error('ERROR: Check-out button not found!');
+    }
+    
+    console.log('Page initialization complete');
+    
+    // Request permissions after a short delay
+    setTimeout(() => {
+        requestPermissions();
+    }, 1000);
+});
+
+// Verification functions for attendance page
+function verifyAttendanceCheckIn(checkinId, action) {
+    if (!confirm(`Are you sure you want to ${action} this check-in?`)) {
+        return;
+    }
+    
+    const csrftoken = getCsrfToken();
+    
+    if (!csrftoken) {
+        alert('CSRF token not found. Please refresh the page.');
+        return;
+    }
+    
+    fetch(`/verify-checkin/${checkinId}/${action}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message);
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Verification error:', error);
+        showNotification('An error occurred: ' + error.message, 'error');
+    });
+}
+
+// Check location status when project is selected
+async function checkLocationStatus(action) {
+    const projectSelect = action === 'checkin' ? document.getElementById('checkinProject') : document.getElementById('checkoutProject');
+    const projectId = projectSelect.value;
+    
+    const statusBox = document.getElementById('locationStatusBox');
+    const statusContent = document.getElementById('locationStatusContent');
+    
+    if (!projectId) {
+        statusBox.style.display = 'none';
+        return;
+    }
+    
+    // Show loading
+    statusBox.style.display = 'block';
+    statusBox.style.background = '#d1ecf1';
+    statusBox.style.border = '2px solid #0c5460';
+    statusContent.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking your location...';
+    
+    try {
+        // Get project boundaries
+        const selectedOption = projectSelect.options[projectSelect.selectedIndex];
+        const boundariesStr = selectedOption.getAttribute('data-boundaries');
+        let boundaries = [];
+        
+        try {
+            boundaries = JSON.parse(boundariesStr);
+        } catch (e) {
+            boundaries = [];
+        }
+        
+        // Get current location
+        const location = await getCurrentLocation();
+        
+        // Check if inside boundary
+        const isInside = pointInPolygon([location.latitude, location.longitude], boundaries);
+        
+        if (isInside) {
+            statusBox.style.background = '#d4edda';
+            statusBox.style.border = '2px solid #28a745';
+            statusContent.innerHTML = `
+                <i class="fas fa-check-circle" style="color: #28a745;"></i> 
+                <strong>✅ Location Verified:</strong> You are inside the project boundary. You can proceed with ${action === 'checkin' ? 'check-in' : 'check-out'}.
+            `;
+        } else {
+            // Calculate distance from boundary
+            let minDistance = Infinity;
+            for (const point of boundaries) {
+                const distance = calculateDistanceBetweenPoints(
+                    location.latitude, location.longitude,
+                    point[0], point[1]
+                );
+                minDistance = Math.min(minDistance, distance);
+            }
+            
+            statusBox.style.background = '#f8d7da';
+            statusBox.style.border = '2px solid #dc3545';
+            statusContent.innerHTML = `
+                <i class="fas fa-exclamation-circle" style="color: #dc3545;"></i> 
+                <strong>⛔ Outside Boundary:</strong> You are ${Math.round(minDistance)} meters away from the project boundary. 
+                ${action === 'checkin' ? 'Check-in' : 'Check-out'} will be denied unless you are at the project location.
+            `;
+        }
+    } catch (error) {
+        statusBox.style.background = '#f8d7da';
+        statusBox.style.border = '2px solid #dc3545';
+        statusContent.innerHTML = `
+            <i class="fas fa-times-circle"></i> 
+            <strong>Error:</strong> ${error.message}. Please enable location services and try again.
+        `;
+    }
+}
+
+// Point in polygon algorithm
+function pointInPolygon(point, polygon) {
+    if (!polygon || polygon.length < 3) {
+        return true; // No boundary defined, allow
+    }
+    
+    const lat = point[0];
+    const lng = point[1];
+    let inside = false;
+    
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const p1_lat = polygon[i][0];
+        const p1_lng = polygon[i][1];
+        const p2_lat = polygon[j][0];
+        const p2_lng = polygon[j][1];
+        
+        if ((p1_lng > lng) !== (p2_lng > lng) &&
+            lat < (p2_lat - p1_lat) * (lng - p1_lng) / (p2_lng - p1_lng) + p1_lat) {
+            inside = !inside;
+        }
+    }
+    
+    return inside;
+}
+
+// Calculate distance between two GPS points in meters
+function calculateDistanceBetweenPoints(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
+}
+
+function viewComparisonPhoto(capturedUrl, storedUrl, labourerName) {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+    modal.innerHTML = `
+        <div style="background: white; padding: 20px; border-radius: 10px; max-width: 90%; max-height: 90%; overflow: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #333;">Photo Comparison - ${labourerName}</h3>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                        style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="text-align: center;">
+                    <h4 style="margin-bottom: 10px; color: #555;">Captured Photo (Check-in)</h4>
+                    <img src="${capturedUrl}" style="width: 100%; max-width: 400px; border-radius: 5px; border: 2px solid #ddd;">
+                </div>
+                <div style="text-align: center;">
+                    <h4 style="margin-bottom: 10px; color: #555;">Registered Photo</h4>
+                    <img src="${storedUrl}" style="width: 100%; max-width: 400px; border-radius: 5px; border: 2px solid #ddd;">
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+</script>
+{% endblock %}
