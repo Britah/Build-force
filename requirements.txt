@@ -1,31 +1,23 @@
 # Core
 Django==5.2.9
-psycopg2-binary==2.9.9
-
-# API
+psycopg2-binary==2.9.10
+gunicorn==22.0.0
+whitenoise==6.7.0
 djangorestframework==3.14.0
 django-cors-headers==4.9.0
 django-filter==23.3
-
-# Authentication
 pyotp==2.9.0
 qrcode==8.2
-
-# Face/Image Processing
 pillow==12.0.0 
-# face-recognition (your version without dlib)
-
-# Reporting
 reportlab==4.4.5
 openpyxl==3.1.5
-pandas==2.1.1
-numpy==1.26.5
-# Utilities
+numpy==1.26.4
+pandas==2.2.2
 python-decouple==3.8
 celery==5.5.3
 redis==5.0.1 
 tailwind
 dotenv
 django-widget-tweaks
-gunicorn
+
 
