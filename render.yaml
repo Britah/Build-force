@@ -2,7 +2,7 @@ services:
   - type: web
     name: django-app
     env: python
-    pythonVersion: "3.12.0"
+    pythonVersion: "3.12.6"
     plan: free
     buildCommand: "./build.sh"
     startCommand: "gunicorn labourer_admin.wsgi:application"
