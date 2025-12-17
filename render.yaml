@@ -1,11 +1,28 @@
+# render.yaml
 services:
   - type: web
-    name: your-service-name
-    runtime: python
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: "gunicorn labourer_admin.wsgi:application"
+    name: labourers-admin
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: oregon  # or your preferred region
+    branch: main
     envVars:
-      - key: DJANGO_SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: labourers-db
+          property: connectionString
+      - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com,localhost,127.0.0.1"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://*.onrender.com"
+
+databases:
+  - name: labourers-db
+    plan: free
+    databaseName: labourers_db
+    user: labourers_user
