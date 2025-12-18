@@ -40,7 +40,7 @@ python manage.py migrate\n\
 echo "Collecting static files..."\n\
 python manage.py collectstatic --noinput --clear\n\
 echo "Starting Gunicorn..."\n\
-exec gunicorn django-admin.wsgi:application --bind 0.0.0.0:$PORT\n\
+exec gunicorn labourer-admin.wsgi:application --bind 0.0.0.0:$PORT\n\
 ' > /app/start.sh && chmod +x /app/start.sh
 
 EXPOSE 8000
