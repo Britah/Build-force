@@ -1,7 +1,7 @@
 # render.yaml
 services:
   - type: web
-    name: labourers-admin
+    name: Labour-Management-system
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
