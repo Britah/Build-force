@@ -17,8 +17,8 @@ openpyxl==3.1.5
 python-decouple==3.8
 celery==5.5.3
 redis==5.0.1 
-tailwind
-dotenv
+django-tailwind
+python-dotenv
 django-widget-tweaks
 
 
