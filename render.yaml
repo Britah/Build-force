@@ -1,7 +1,7 @@
 # render.yaml
 services:
   - type: web
-    name: django-admin
+    name: Labour-Management-system
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
