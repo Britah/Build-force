@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'labourers',
     'widget_tweaks',
+    'labourer_admin',
 ]
 
 MIDDLEWARE = [
